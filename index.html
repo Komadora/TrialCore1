@@ -117,6 +117,15 @@
     .section-header { background:#0d1f0d !important; color:var(--green) !important; font-weight:700; text-align:left !important; }
 
     hr.divider { border:none; border-top:1px solid var(--border); }
+
+    /* CONTACTS */
+    .contact-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--border); }
+    .contact-row:last-child { border-bottom:none; }
+    .contact-name { flex:1; font-size:.92rem; }
+    .contact-phone { font-size:.78rem; color:var(--muted); }
+    .btn-wa { background:#25d366; color:#fff; border:none; border-radius:8px; padding:7px 12px; font-size:.82rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .btn-wa:active { opacity:.75; }
+    .btn-rm { background:none; border:none; color:var(--muted); cursor:pointer; font-size:1.1rem; padding:4px; }
   </style>
 </head>
 <body>
@@ -224,7 +233,21 @@
 
 <!-- EXPORT -->
 <div class="screen" id="screen-export">
-  <button class="btn btn-success" id="btn-dl">⬇ Excel İndir (.xlsx)</button>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-success" id="btn-dl" style="flex:1">⬇ İndir</button>
+    <button class="btn btn-primary" id="btn-share" style="flex:1">📤 Paylaş</button>
+  </div>
+
+  <div class="card" id="contacts-card">
+    <div class="card-title">Hızlı WhatsApp Paylaşım</div>
+    <div id="contacts-list"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <input type="text" id="inp-cname" placeholder="İsim" style="flex:1">
+      <input type="tel"  id="inp-cphone" placeholder="90 5XX XXX XX XX" style="flex:1.4">
+      <button class="btn btn-muted" id="btn-add-contact" style="width:auto;padding:10px 12px;flex-shrink:0">Ekle</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title">Önizleme</div>
     <div class="table-wrap"><table id="exp-table"></table></div>
@@ -246,10 +269,11 @@ function persist() { localStorage.setItem('tarla_v2', JSON.stringify(trials)); }
 function totalCells(t) { return t.reps * t.plants * t.chars; }
 
 function cellAt(t, idx) {
-  const rep   = Math.floor(idx / (t.plants * t.chars));
-  const rem   = idx % (t.plants * t.chars);
-  const plant = Math.floor(rem / t.chars);
-  const char  = rem % t.chars;
+  // Sıra: tekerrür → karakter → bitki (yukarıdan aşağıya: önce 1.bitki 101, 2.bitki 101...)
+  const rep   = Math.floor(idx / (t.chars * t.plants));
+  const rem   = idx % (t.chars * t.plants);
+  const char  = Math.floor(rem / t.plants);
+  const plant = rem % t.plants;
   return { rep, plant, char };
 }
 
@@ -507,13 +531,12 @@ function renderExport() {
   });
   html += '</tbody>';
   document.getElementById('exp-table').innerHTML = html;
+  renderContacts();
 }
 
-document.getElementById('btn-dl').addEventListener('click', () => {
-  const t = active;
+function buildXlsxBlob(t) {
   const wb = XLSX.utils.book_new();
   const wsData = [];
-
   for (let r = 0; r < t.reps; r++) {
     const label = r === 0 ? 'Karakterler/Bitki Sayısı' : `${r+1}. tekerrür Karakterler/Bitki Sayısı`;
     const codes = Array.from({length:t.chars}, (_,ci) => charCode(r,ci));
@@ -527,13 +550,76 @@ document.getElementById('btn-dl').addEventListener('click', () => {
       }
       wsData.push(row);
     }
-    wsData.push([]); // boş satır tekerrürler arasında
+    wsData.push([]);
   }
-
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   ws['!cols'] = [{wch:30}, ...Array(t.chars).fill({wch:8})];
   XLSX.utils.book_append_sheet(wb, ws, t.name.slice(0,31));
-  XLSX.writeFile(wb, (t.name+'_'+t.date).replace(/[\s/\\:*?"<>|]/g,'_')+'.xlsx');
+  return { wb, filename: (t.name+'_'+t.date).replace(/[\s/\\:*?"<>|]/g,'_')+'.xlsx' };
+}
+
+document.getElementById('btn-dl').addEventListener('click', () => {
+  const { wb, filename } = buildXlsxBlob(active);
+  XLSX.writeFile(wb, filename);
+});
+
+document.getElementById('btn-share').addEventListener('click', async () => {
+  if (!navigator.share) { alert('Tarayıcınız paylaşımı desteklemiyor. Dosyayı indirip manuel gönderin.'); return; }
+  const t = active;
+  const { wb, filename } = buildXlsxBlob(t);
+  const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const file = new File([buf], filename, { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  try {
+    await navigator.share({ files:[file], title: t.name });
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('Paylaşım başarısız: ' + e.message);
+  }
+});
+
+// ── CONTACTS ─────────────────────────────────────────────────
+let contacts = JSON.parse(localStorage.getItem('tarla_contacts') || '[]');
+function saveContacts() { localStorage.setItem('tarla_contacts', JSON.stringify(contacts)); }
+
+function renderContacts() {
+  const el = document.getElementById('contacts-list');
+  if (!contacts.length) { el.innerHTML = '<div style="font-size:.82rem;color:var(--muted);padding:4px 0">Henüz kişi eklenmedi.</div>'; return; }
+  el.innerHTML = contacts.map((c,i) => `
+    <div class="contact-row">
+      <div style="flex:1">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-phone">${c.phone}</div>
+      </div>
+      <button class="btn-wa" onclick="shareToWA(${i})">WhatsApp'a Gönder</button>
+      <button class="btn-rm" onclick="removeContact(${i})">×</button>
+    </div>`).join('');
+}
+
+window.shareToWA = async function(i) {
+  const c = contacts[i];
+  const phone = c.phone.replace(/\D/g,'');
+  if (navigator.share) {
+    const t = active;
+    const { wb, filename } = buildXlsxBlob(t);
+    const buf = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    const file = new File([buf], filename, { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    try { await navigator.share({ files:[file], title: t.name }); } catch(e) { if(e.name!=='AbortError') alert('Hata: '+e.message); }
+  } else {
+    window.open(`https://wa.me/${phone}`, '_blank');
+  }
+};
+
+window.removeContact = function(i) {
+  contacts.splice(i,1); saveContacts(); renderContacts();
+};
+
+document.getElementById('btn-add-contact').addEventListener('click', () => {
+  const name  = document.getElementById('inp-cname').value.trim();
+  const phone = document.getElementById('inp-cphone').value.trim();
+  if (!name || !phone) { alert('İsim ve telefon numarası girin.'); return; }
+  contacts.push({name, phone});
+  saveContacts(); renderContacts();
+  document.getElementById('inp-cname').value = '';
+  document.getElementById('inp-cphone').value = '';
 });
 
 document.getElementById('btn-del').addEventListener('click', () => {
