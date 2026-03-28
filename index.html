@@ -204,21 +204,22 @@
     <div class="cell-sub"   id="cell-sub"></div>
   </div>
 
-  <!-- iOS: klavye diktesi -->
-  <div class="dikte-wrap" id="dikte-wrap">
-    <input class="dikte-input" id="dikte-inp" type="text" inputmode="decimal"
-           placeholder="—" autocomplete="off" autocorrect="off" spellcheck="false">
-    <div class="dikte-hint">Klavyedeki 🎤 ile sesli girin veya yazın, sonra ✓ Kaydet'e basın</div>
-  </div>
-
-  <!-- Android: Web Speech -->
-  <div class="val-display" id="val-display" style="display:none">
+  <!-- Değer göstergesi -->
+  <div class="val-display" id="val-display">
     <div class="val-big" id="val-big">—</div>
-    <div class="val-hint" id="val-hint">Mikrofona basın ve değeri söyleyin</div>
+    <div class="val-hint" id="val-hint">Mikrofona basın veya aşağıya yazın</div>
   </div>
   <div class="countdown" id="countdown"></div>
-  <div class="mic-wrap" id="mic-wrap" style="display:none">
+
+  <!-- Mikrofon (herkes) -->
+  <div class="mic-wrap">
     <button class="mic-btn" id="mic-btn">🎙️</button>
+  </div>
+
+  <!-- Manuel giriş (her zaman görünür) -->
+  <div class="dikte-wrap" id="dikte-wrap">
+    <input class="dikte-input" id="dikte-inp" type="text" inputmode="decimal"
+           placeholder="manuel giriş" autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="nav-row">
@@ -382,41 +383,25 @@ document.getElementById('btn-create').addEventListener('click', () => {
 });
 
 // ── ENTRY ────────────────────────────────────────────────────
-function setupMode() {
-  document.getElementById('dikte-wrap').style.display  = isIOS ? 'flex'  : 'none';
-  document.getElementById('val-display').style.display = isIOS ? 'none'  : 'block';
-  document.getElementById('mic-wrap').style.display    = isIOS ? 'none'  : 'flex';
-}
-
 function renderEntry() {
   if (!active) return;
-  setupMode();
   const t = active, tot = totalCells(t);
   const { rep, plant, char } = cellAt(t, curIdx);
   const code = charCode(rep, char);
 
-  // progress
   const done = filledCount(t);
   document.getElementById('prog-fill').style.width = (tot ? done/tot*100 : 0) + '%';
   document.getElementById('prog-text').textContent = `${done} / ${tot} hücre`;
 
-  // cell info
   document.getElementById('cell-rep').textContent   = `Tekerrür ${rep+1} / ${t.reps}`;
   document.getElementById('cell-plant').textContent = `Bitki ${plant+1}`;
   document.getElementById('cell-char').textContent  = `Karakter ${code}`;
   document.getElementById('cell-sub').textContent   = `${char+1}. karakter · ${plant+1}/${t.plants} bitki`;
 
-  // value
   const existing = getv(t, rep, plant, char);
   tempVal = existing;
-
-  if (isIOS) {
-    const inp = document.getElementById('dikte-inp');
-    inp.value = existing;
-    setTimeout(() => inp.focus(), 80);
-  } else {
-    updateValDisplay(existing, existing !== '');
-  }
+  document.getElementById('dikte-inp').value = existing;
+  updateValDisplay(existing, existing !== '');
 
   document.getElementById('btn-prev').disabled = curIdx === 0;
   clearCd();
@@ -429,30 +414,37 @@ function updateValDisplay(v, confirmed) {
   document.getElementById('val-display').className = 'val-display' + (confirmed ? ' confirmed' : v ? ' listening' : '');
   document.getElementById('val-hint').textContent = confirmed
     ? '✓ Kaydedildi'
-    : (v ? '✓ Kaydet\'e basın' : 'Mikrofona basın ve değeri söyleyin');
+    : (v ? '✓ Kaydet\'e basın' : 'Mikrofona basın veya aşağıya yazın');
 }
 
 function doConfirm(val) {
-  if (val === '' || val === null || !active) return;
+  const v = String(val ?? '').trim();
+  if (v === '' || !active) return;
   const { rep, plant, char } = cellAt(active, curIdx);
-  setv(active, rep, plant, char, String(val).trim());
+  setv(active, rep, plant, char, v);
   active.lastIdx = curIdx;
   persist();
-  if (!isIOS) { updateValDisplay(val, true); document.getElementById('mic-btn').className = 'mic-btn confirming'; }
+  updateValDisplay(v, true);
+  document.getElementById('mic-btn').className = 'mic-btn confirming';
   clearCd();
   setTimeout(() => {
-    if (!isIOS) document.getElementById('mic-btn').className = 'mic-btn';
+    document.getElementById('mic-btn').className = 'mic-btn';
     if (curIdx < totalCells(active)-1) { curIdx++; renderEntry(); }
     else { document.getElementById('prog-text').textContent = '🎉 Tüm değerler girildi!'; }
   }, 400);
 }
 
-document.getElementById('dikte-inp').addEventListener('input', e => { tempVal = e.target.value; });
-document.getElementById('dikte-inp').addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doConfirm(tempVal); } });
+document.getElementById('dikte-inp').addEventListener('input', e => {
+  tempVal = e.target.value;
+  updateValDisplay(e.target.value, false);
+});
+document.getElementById('dikte-inp').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); doConfirm(tempVal); }
+});
 
 document.getElementById('btn-confirm').addEventListener('click', () => {
-  const val = isIOS ? document.getElementById('dikte-inp').value : tempVal;
-  clearCd(); doConfirm(val);
+  clearCd();
+  doConfirm(tempVal || document.getElementById('dikte-inp').value);
 });
 document.getElementById('btn-prev').addEventListener('click', () => { clearCd(); stopRec(); if(curIdx>0){curIdx--;renderEntry();} });
 document.getElementById('btn-skip').addEventListener('click', () => { clearCd(); stopRec(); if(curIdx<totalCells(active)-1){curIdx++;renderEntry();} });
