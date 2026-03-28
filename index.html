@@ -441,9 +441,6 @@ function renderEntry() {
 
   document.getElementById('btn-prev').disabled = curIdx === 0;
   clearCd();
-
-  // Otomatik odakla — klavye hep açık kalsın
-  setTimeout(() => { inp.focus(); inp.select(); }, 150);
 }
 
 function updateValDisplay(v, confirmed) {
@@ -465,10 +462,19 @@ function doConfirm(val) {
   persist();
   updateValDisplay(v, true);
   clearCd();
+
+  // Dikteyi durdur: blur → input sıfırla → sonraki karaktere geç
+  const inp = document.getElementById('dikte-inp');
+  inp.blur(); // iOS diktesini keser
+
   setTimeout(() => {
-    if (curIdx < totalCells(active)-1) { curIdx++; renderEntry(); }
-    else { document.getElementById('prog-text').textContent = '🎉 Tüm değerler girildi!'; }
-  }, 400);
+    if (curIdx < totalCells(active)-1) {
+      curIdx++;
+      renderEntry();
+    } else {
+      document.getElementById('prog-text').textContent = '🎉 Tüm değerler girildi!';
+    }
+  }, 500);
 }
 
 document.getElementById('dikte-inp').addEventListener('input', e => {
