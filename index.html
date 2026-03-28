@@ -93,12 +93,11 @@
     .val-big.interim { color:var(--muted); font-style:italic; font-size:1.6rem; }
     .val-hint { font-size:.8rem; color:var(--muted); margin-top:6px; min-height:1.2em; }
 
-    /* MIC */
-    .mic-wrap { display:flex; justify-content:center; }
-    .mic-btn { width:80px; height:80px; border-radius:50%; border:2px solid var(--border); background:var(--surface); font-size:2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
-    .mic-btn.listening  { background:#0d2b4a; border-color:var(--blue); animation:pulse 1.4s infinite; }
-    .mic-btn.confirming { background:#0d3a1a; border-color:var(--green); }
-    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(56,139,253,.35)} 70%{box-shadow:0 0 0 16px rgba(56,139,253,0)} 100%{box-shadow:0 0 0 0 rgba(56,139,253,0)} }
+    /* INPUT + MIC */
+    .input-wrap { position:relative; display:flex; align-items:center; }
+    .input-wrap .dikte-input { padding-right:54px; }
+    .input-mic { position:absolute; right:6px; width:42px; height:42px; border-radius:50%; border:none; background:var(--blue); font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+    .input-mic:active { background:#1d4ed8; }
 
     .countdown { text-align:center; font-size:.86rem; color:var(--green); min-height:1.4em; font-weight:500; }
 
@@ -207,19 +206,15 @@
   <!-- Değer göstergesi -->
   <div class="val-display" id="val-display">
     <div class="val-big" id="val-big">—</div>
-    <div class="val-hint" id="val-hint">Mikrofona basın veya aşağıya yazın</div>
+    <div class="val-hint" id="val-hint">Kutuya dokunup klavyedeki 🎤 ile söyleyin</div>
   </div>
   <div class="countdown" id="countdown"></div>
 
-  <!-- Mikrofon (herkes) -->
-  <div class="mic-wrap">
-    <button class="mic-btn" id="mic-btn">🎙️</button>
-  </div>
-
-  <!-- Manuel giriş (her zaman görünür) -->
-  <div class="dikte-wrap" id="dikte-wrap">
+  <!-- Giriş kutusu + mikrofon ikonu -->
+  <div class="input-wrap">
     <input class="dikte-input" id="dikte-inp" type="text"
-           placeholder="manuel giriş" autocomplete="off" autocorrect="off" spellcheck="false">
+           placeholder="dokunup konuşun" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="input-mic" id="input-mic" type="button">🎙️</button>
   </div>
 
   <div class="nav-row">
@@ -325,7 +320,7 @@ function show(name) {
 }
 
 document.getElementById('back-btn').addEventListener('click', () => {
-  stopRec();
+  clearCd();
   if (document.getElementById('screen-entry').classList.contains('active'))       { show('home'); renderHome(); }
   else if (document.getElementById('screen-export').classList.contains('active')) { show('entry'); renderEntry(); }
   else { show('home'); renderHome(); }
@@ -382,6 +377,50 @@ document.getElementById('btn-create').addEventListener('click', () => {
   show('entry'); renderEntry();
 });
 
+// ── TÜRKÇE YAZI → SAYI ──────────────────────────────────────
+function turkceToNumber(text) {
+  if (text === '' || text === null) return '';
+  text = text.trim().toLowerCase();
+
+  // Zaten sayıysa olduğu gibi döndür
+  if (/^-?\d+([.,]\d+)?$/.test(text)) return text.replace(',', '.');
+
+  const birler = {sıfır:0,bir:1,iki:2,üç:3,dört:4,beş:5,altı:6,yedi:7,sekiz:8,dokuz:9};
+  const onlar  = {on:10,yirmi:20,otuz:30,kırk:40,elli:50,altmış:60,yetmiş:70,seksen:80,doksan:90};
+
+  function parcala(str) {
+    if (!str || !str.trim()) return 0;
+    const kelimeler = str.trim().split(/\s+/);
+    let sonuc = 0, mevcut = 0;
+    for (const k of kelimeler) {
+      if (k === 'yüz')      { mevcut = (mevcut || 1) * 100; }
+      else if (k === 'bin') { mevcut = (mevcut || 1) * 1000; sonuc += mevcut; mevcut = 0; }
+      else if (onlar[k] !== undefined)  { mevcut += onlar[k]; }
+      else if (birler[k] !== undefined) { mevcut += birler[k]; }
+    }
+    return sonuc + mevcut;
+  }
+
+  // "buçuk" → .5
+  const buçuk = text.includes('buçuk');
+  let temiz = text.replace('buçuk', '').trim();
+
+  // "virgül" veya "nokta" ile ondalık
+  const parcalar = temiz.split(/\s*(?:virgül|nokta)\s*/);
+  let tam = parcala(parcalar[0]);
+
+  if (parcalar.length > 1 && parcalar[1]) {
+    const ondalik = parcala(parcalar[1]);
+    const hane = String(ondalik).length;
+    return tam + ondalik / Math.pow(10, hane);
+  }
+
+  if (buçuk) return tam + 0.5;
+
+  // Dönüşüm yapılamadıysa orijinal metni döndür
+  return tam || text;
+}
+
 // ── ENTRY ────────────────────────────────────────────────────
 function renderEntry() {
   if (!active) return;
@@ -425,18 +464,23 @@ function doConfirm(val) {
   active.lastIdx = curIdx;
   persist();
   updateValDisplay(v, true);
-  document.getElementById('mic-btn').className = 'mic-btn confirming';
   clearCd();
   setTimeout(() => {
-    document.getElementById('mic-btn').className = 'mic-btn';
     if (curIdx < totalCells(active)-1) { curIdx++; renderEntry(); }
     else { document.getElementById('prog-text').textContent = '🎉 Tüm değerler girildi!'; }
   }, 400);
 }
 
+let inputTimer = null;
 document.getElementById('dikte-inp').addEventListener('input', e => {
-  tempVal = e.target.value;
-  updateValDisplay(e.target.value, false);
+  const raw = e.target.value;
+  const converted = turkceToNumber(raw);
+  tempVal = String(converted);
+  updateValDisplay(tempVal, false);
+
+  // Her tuşta zamanlayıcıyı sıfırla, 2 sn sessizlik → otomatik kaydet
+  clearCd();
+  if (raw.trim()) startCd(tempVal);
 });
 document.getElementById('dikte-inp').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); doConfirm(tempVal); }
@@ -444,11 +488,21 @@ document.getElementById('dikte-inp').addEventListener('keydown', e => {
 
 document.getElementById('btn-confirm').addEventListener('click', () => {
   clearCd();
-  doConfirm(tempVal || document.getElementById('dikte-inp').value);
+  const raw = document.getElementById('dikte-inp').value;
+  doConfirm(tempVal || String(turkceToNumber(raw)));
 });
-document.getElementById('btn-prev').addEventListener('click', () => { clearCd(); stopRec(); if(curIdx>0){curIdx--;renderEntry();} });
-document.getElementById('btn-skip').addEventListener('click', () => { clearCd(); stopRec(); if(curIdx<totalCells(active)-1){curIdx++;renderEntry();} });
-document.getElementById('btn-to-export').addEventListener('click', () => { stopRec(); renderExport(); show('export'); });
+// Input mic butonu → input'a odakla (iOS klavye açılır, kullanıcı klavyedeki 🎤'e basar)
+document.getElementById('input-mic').addEventListener('click', () => {
+  const inp = document.getElementById('dikte-inp');
+  inp.value = '';
+  tempVal = '';
+  updateValDisplay('', false);
+  inp.focus();
+});
+
+document.getElementById('btn-prev').addEventListener('click', () => { clearCd(); if(curIdx>0){curIdx--;renderEntry();} });
+document.getElementById('btn-skip').addEventListener('click', () => { clearCd(); if(curIdx<totalCells(active)-1){curIdx++;renderEntry();} });
+document.getElementById('btn-to-export').addEventListener('click', () => { renderExport(); show('export'); });
 
 // countdown
 function startCd(val) {
@@ -460,33 +514,6 @@ function startCd(val) {
 function clearCd() {
   if(cdTimer){clearInterval(cdTimer);cdTimer=null;}
   document.getElementById('countdown').textContent='';
-}
-
-// ── SPEECH (Android) ─────────────────────────────────────────
-document.getElementById('mic-btn').addEventListener('click', () => {
-  const btn = document.getElementById('mic-btn');
-  if (!SR) { alert('Chrome kullanın.'); return; }
-  if (btn.classList.contains('listening')) { stopRec(); return; }
-  clearCd(); tempVal=''; updateValDisplay('',false);
-  recog = new SR(); recog.lang='tr-TR'; recog.continuous=false; recog.interimResults=true;
-  recog.onresult = e => {
-    let interim='',final='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const tx=e.results[i][0].transcript.trim();
-      if(e.results[i].isFinal)final=tx;else interim=tx;
-    }
-    const v=final||interim; tempVal=v; updateValDisplay(v,false);
-    if(final){btn.className='mic-btn';startCd(final);}
-  };
-  recog.onend=()=>{btn.className='mic-btn';};
-  recog.onerror=e=>{btn.className='mic-btn';if(e.error!=='no-speech')document.getElementById('val-hint').textContent='Hata: '+e.error;};
-  recog.start(); btn.className='mic-btn listening';
-});
-
-function stopRec() {
-  if(recog){try{recog.stop();}catch(e){}recog=null;}
-  document.getElementById('mic-btn').className='mic-btn';
-  clearCd();
 }
 
 // ── EXPORT ───────────────────────────────────────────────────
