@@ -4,237 +4,212 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Tarla Kaydı</title>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
     :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --border: #21262d;
-      --text: #e6edf3;
-      --muted: #7d8590;
-      --green: #3fb950;
-      --blue: #388bfd;
-      --red: #f85149;
-      --yellow: #d29922;
+      --bg: #0d1117; --surface: #161b22; --border: #21262d;
+      --text: #e6edf3; --muted: #7d8590;
+      --green: #3fb950; --blue: #388bfd; --red: #f85149; --yellow: #d29922;
     }
+    body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; min-height:100dvh; display:flex; flex-direction:column; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
+    /* HEADER */
+    .header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 16px; display:flex; align-items:center; gap:10px; position:sticky; top:0; z-index:10; }
+    .header h1 { font-size:1rem; font-weight:600; flex:1; }
+    .back-btn { background:none; border:none; color:var(--blue); font-size:1.2rem; cursor:pointer; padding:4px 8px; }
 
-    .header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      position: sticky; top: 0; z-index: 10;
-    }
-    .header h1 { font-size: 1rem; font-weight: 600; flex: 1; }
-    .back-btn { background: none; border: none; color: var(--blue); font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
+    /* SCREENS */
+    .screen { flex:1; display:none; flex-direction:column; padding:16px; gap:14px; overflow-y:auto; }
+    .screen.active { display:flex; }
 
-    .screen { flex: 1; display: none; flex-direction: column; padding: 16px; gap: 12px; overflow-y: auto; }
-    .screen.active { display: flex; }
+    /* CARDS */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+    .card-title { font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; font-weight:600; }
 
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
-    .card h3 { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+    /* INPUTS */
+    input[type=text] { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:11px 13px; font-size:1rem; font-family:inherit; }
+    input[type=text]:focus { outline:none; border-color:var(--blue); }
 
-    input, select {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      padding: 10px 12px;
-      font-size: 0.95rem;
-      font-family: inherit;
-    }
-    input:focus { outline: none; border-color: var(--blue); }
+    /* BUTTONS */
+    .btn { border:none; border-radius:8px; padding:13px 16px; font-size:.95rem; font-weight:500; cursor:pointer; font-family:inherit; width:100%; transition:opacity .15s; }
+    .btn:active { opacity:.7; } .btn:disabled { opacity:.3; cursor:default; }
+    .btn-primary { background:var(--blue); color:#fff; }
+    .btn-success { background:var(--green); color:#fff; }
+    .btn-danger  { background:var(--red);  color:#fff; }
+    .btn-muted   { background:var(--surface); color:var(--text); border:1px solid var(--border); }
 
-    .btn {
-      border: none; border-radius: 8px; padding: 12px 16px;
-      font-size: 0.95rem; font-weight: 500; cursor: pointer;
-      font-family: inherit; width: 100%; transition: opacity 0.15s;
-    }
-    .btn:active { opacity: 0.75; }
-    .btn:disabled { opacity: 0.35; cursor: default; }
-    .btn-primary { background: var(--blue); color: #fff; }
-    .btn-success { background: var(--green); color: #fff; }
-    .btn-danger  { background: var(--red); color: #fff; }
-    .btn-muted   { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    /* STEPPER */
+    .stepper-row { display:flex; align-items:center; justify-content:space-between; }
+    .stepper-label { font-size:.95rem; }
+    .stepper-label small { display:block; font-size:.78rem; color:var(--muted); margin-top:2px; }
+    .stepper { display:flex; align-items:center; gap:0; border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+    .stepper button { background:var(--bg); border:none; color:var(--text); width:44px; height:44px; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .stepper button:active { background:var(--border); }
+    .stepper .val { width:52px; text-align:center; font-size:1.2rem; font-weight:700; border-left:1px solid var(--border); border-right:1px solid var(--border); line-height:44px; }
 
-    /* Trial list */
-    .trial-item {
-      display: flex; align-items: center; gap: 12px; padding: 12px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; cursor: pointer;
-    }
-    .trial-item:active { opacity: 0.7; }
-    .trial-item .info { flex: 1; }
-    .trial-item .t-name { font-weight: 600; }
-    .trial-item .t-meta { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
-    .badge { font-size: 0.75rem; padding: 3px 9px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
-    .badge-done { background: #1a3a2a; color: var(--green); }
-    .badge-wip  { background: #1a2a3a; color: var(--blue); }
-    .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; line-height: 1.7; }
+    /* PREVIEW */
+    .preview-grid { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+    .char-chip { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:3px 8px; font-size:.78rem; color:var(--muted); }
+    .char-chip.rep1 { color:#79c0ff; border-color:#1f3d5c; }
+    .char-chip.rep2 { color:#a5d6a7; border-color:#1b3a2a; }
+    .char-chip.rep3 { color:#ffcc80; border-color:#3a2e1a; }
+    .char-chip.repN { color:var(--muted); border-color:var(--border); }
 
-    /* Setup tags */
-    .inline-row { display: flex; gap: 8px; }
-    .inline-row input { flex: 1; }
-    .inline-row .btn { width: auto; padding: 10px 14px; flex-shrink: 0; }
-    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .tag {
-      background: #1a2a3a; border: 1px solid #2a3a4a; border-radius: 20px;
-      padding: 4px 10px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;
-    }
-    .tag button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; }
+    /* TRIAL LIST */
+    .trial-item { display:flex; align-items:center; gap:12px; padding:13px; background:var(--surface); border:1px solid var(--border); border-radius:12px; cursor:pointer; }
+    .trial-item:active { opacity:.7; }
+    .trial-item .info { flex:1; }
+    .t-name { font-weight:600; font-size:.98rem; }
+    .t-meta { font-size:.8rem; color:var(--muted); margin-top:3px; }
+    .badge { font-size:.73rem; padding:3px 9px; border-radius:20px; font-weight:600; white-space:nowrap; }
+    .badge-done { background:#1a3a2a; color:var(--green); }
+    .badge-wip  { background:#1a2a3a; color:var(--blue); }
+    .empty-state { text-align:center; color:var(--muted); padding:48px 20px; line-height:1.8; font-size:.92rem; }
 
-    /* Progress */
-    .progress-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.4s; }
-    .progress-text { font-size: 0.8rem; color: var(--muted); text-align: right; margin-top: 4px; }
+    /* PROGRESS */
+    .prog-bar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+    .prog-fill { height:100%; background:var(--green); border-radius:3px; transition:width .4s; }
+    .prog-text { font-size:.78rem; color:var(--muted); text-align:right; margin-top:4px; }
 
-    /* Cell info */
-    .cell-info-card { text-align: center; }
-    .rep-label   { font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
-    .treat-label { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-    .meas-label  { font-size: 1rem; color: var(--yellow); }
+    /* ENTRY CELL INFO */
+    .cell-card { text-align:center; padding:18px; }
+    .cell-rep   { font-size:.82rem; color:var(--muted); margin-bottom:6px; }
+    .cell-plant { font-size:2rem; font-weight:800; line-height:1; }
+    .cell-char  { font-size:1rem; color:var(--yellow); margin-top:4px; }
+    .cell-sub   { font-size:.78rem; color:var(--muted); margin-top:2px; }
 
-    /* Value display */
-    .value-display {
-      text-align: center; background: var(--surface);
-      border: 2px solid var(--border); border-radius: 14px; padding: 22px 16px;
-      transition: border-color 0.2s;
-    }
-    .value-display.confirmed { border-color: var(--green); }
-    .value-display.listening { border-color: var(--blue); }
-    .val { font-size: 2.8rem; font-weight: 700; min-height: 64px; display: flex; align-items: center; justify-content: center; letter-spacing: 0.02em; }
-    .val.interim { color: var(--muted); font-style: italic; font-size: 1.8rem; }
-    .val-hint { font-size: 0.82rem; color: var(--muted); margin-top: 6px; min-height: 1.2em; }
+    /* DIKTE INPUT (iOS) */
+    .dikte-wrap { display:flex; flex-direction:column; gap:6px; }
+    .dikte-input { width:100%; background:var(--bg); border:2px solid var(--border); border-radius:10px; color:var(--text); padding:14px; font-size:2rem; font-family:inherit; text-align:center; font-weight:700; letter-spacing:.04em; }
+    .dikte-input:focus { outline:none; border-color:var(--blue); }
+    .dikte-hint { font-size:.78rem; color:var(--muted); text-align:center; }
 
-    /* Mic button */
-    .mic-wrap { display: flex; justify-content: center; }
-    .mic-btn {
-      width: 82px; height: 82px; border-radius: 50%; border: 2px solid var(--border);
-      background: var(--surface); font-size: 2rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
-    }
-    .mic-btn.listening  { background: #0d2b4a; border-color: var(--blue); animation: pulse 1.4s infinite; }
-    .mic-btn.confirming { background: #0d3a1a; border-color: var(--green); }
-    @keyframes pulse {
-      0%   { box-shadow: 0 0 0 0 rgba(56,139,253,0.35); }
-      70%  { box-shadow: 0 0 0 16px rgba(56,139,253,0); }
-      100% { box-shadow: 0 0 0 0 rgba(56,139,253,0); }
-    }
+    /* WEB SPEECH (Android) */
+    .val-display { text-align:center; background:var(--surface); border:2px solid var(--border); border-radius:14px; padding:20px 16px; transition:border-color .2s; }
+    .val-display.confirmed { border-color:var(--green); }
+    .val-display.listening { border-color:var(--blue); }
+    .val-big { font-size:2.6rem; font-weight:700; min-height:62px; display:flex; align-items:center; justify-content:center; }
+    .val-big.interim { color:var(--muted); font-style:italic; font-size:1.6rem; }
+    .val-hint { font-size:.8rem; color:var(--muted); margin-top:6px; min-height:1.2em; }
 
-    .countdown { text-align: center; font-size: 0.88rem; color: var(--green); min-height: 1.4em; font-weight: 500; }
+    /* MIC */
+    .mic-wrap { display:flex; justify-content:center; }
+    .mic-btn { width:80px; height:80px; border-radius:50%; border:2px solid var(--border); background:var(--surface); font-size:2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; }
+    .mic-btn.listening  { background:#0d2b4a; border-color:var(--blue); animation:pulse 1.4s infinite; }
+    .mic-btn.confirming { background:#0d3a1a; border-color:var(--green); }
+    @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(56,139,253,.35)} 70%{box-shadow:0 0 0 16px rgba(56,139,253,0)} 100%{box-shadow:0 0 0 0 rgba(56,139,253,0)} }
 
-    /* Dikte input */
-    .dikte-wrap { display: flex; flex-direction: column; gap: 8px; }
-    .dikte-input {
-      width: 100%; background: var(--bg); border: 2px solid var(--border);
-      border-radius: 10px; color: var(--text); padding: 14px;
-      font-size: 1.6rem; font-family: inherit; text-align: center;
-      font-weight: 700; letter-spacing: 0.04em;
-    }
-    .dikte-input:focus { outline: none; border-color: var(--blue); }
-    .dikte-hint { font-size: 0.8rem; color: var(--muted); text-align: center; }
+    .countdown { text-align:center; font-size:.86rem; color:var(--green); min-height:1.4em; font-weight:500; }
 
-    /* Nav row */
-    .nav-row { display: flex; gap: 8px; }
-    .nav-row .btn { flex: 1; padding: 11px 8px; font-size: 0.88rem; }
+    /* NAV ROW */
+    .nav-row { display:flex; gap:8px; }
+    .nav-row .btn { flex:1; padding:11px 6px; font-size:.86rem; }
 
-    /* Export table */
-    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 6px; }
-    table { border-collapse: collapse; font-size: 0.82rem; min-width: 100%; }
-    th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; white-space: nowrap; }
-    th { background: var(--surface); color: var(--muted); font-weight: 600; }
-    tr:nth-child(even) td { background: #0a0f15; }
-    .missing { color: var(--red); }
+    /* EXPORT TABLE */
+    .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:8px; }
+    table { border-collapse:collapse; font-size:.8rem; min-width:100%; }
+    th,td { border:1px solid var(--border); padding:6px 9px; text-align:center; white-space:nowrap; }
+    th { background:var(--surface); color:var(--muted); font-weight:600; }
+    td.row-label { background:var(--surface); color:var(--muted); font-weight:600; }
+    tr:nth-child(even) td { background:#0a0f15; }
+    td.empty { color:var(--red); }
+    .section-header { background:#0d1f0d !important; color:var(--green) !important; font-weight:700; text-align:left !important; }
 
-    .divider { border: none; border-top: 1px solid var(--border); }
+    hr.divider { border:none; border-top:1px solid var(--border); }
   </style>
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
-<div class="header" id="header">
+<div class="header">
   <button class="back-btn" id="back-btn" hidden>‹</button>
   <h1 id="header-title">Tarla Kaydı</h1>
 </div>
 
 <!-- HOME -->
 <div class="screen active" id="screen-home">
-  <button class="btn btn-primary" id="btn-new-trial">+ Yeni Deneme Oluştur</button>
+  <button class="btn btn-primary" id="btn-new">+ Yeni Deneme Tasarla</button>
   <div id="trials-list"></div>
 </div>
 
-<!-- SETUP -->
+<!-- SETUP / DESIGN -->
 <div class="screen" id="screen-setup">
   <div class="card">
-    <h3>Deneme Adı</h3>
-    <input type="text" id="inp-trial-name" placeholder="ör. Buğday Gübre Denemesi 2025">
+    <div class="card-title">Deneme Adı</div>
+    <input type="text" id="inp-name" placeholder="ör. Buğday Verim Denemesi 2025">
   </div>
+
   <div class="card">
-    <h3>Tekerrür Sayısı</h3>
-    <input type="number" id="inp-reps" value="3" min="1" max="30">
-  </div>
-  <div class="card">
-    <h3>Uygulamalar / Konular</h3>
-    <div class="inline-row">
-      <input type="text" id="inp-treat" placeholder="ör. T0, T1, Kontrol…">
-      <button class="btn btn-muted inline-row" id="btn-add-treat">Ekle</button>
+    <div class="card-title">Parametreler</div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+      <div class="stepper-row">
+        <div class="stepper-label">Tekerrür Sayısı<small>Kaç kez tekrarlanacak?</small></div>
+        <div class="stepper">
+          <button onclick="step('reps',-1)">−</button>
+          <div class="val" id="val-reps">3</div>
+          <button onclick="step('reps',+1)">+</button>
+        </div>
+      </div>
+
+      <div class="stepper-row">
+        <div class="stepper-label">Bitki Sayısı<small>Her tekerrürde kaç bitki?</small></div>
+        <div class="stepper">
+          <button onclick="step('plants',-1)">−</button>
+          <div class="val" id="val-plants">10</div>
+          <button onclick="step('plants',+1)">+</button>
+        </div>
+      </div>
+
+      <div class="stepper-row">
+        <div class="stepper-label">Karakter Sayısı<small>Kaç özellik ölçülecek?</small></div>
+        <div class="stepper">
+          <button onclick="step('chars',-1)">−</button>
+          <div class="val" id="val-chars">10</div>
+          <button onclick="step('chars',+1)">+</button>
+        </div>
+      </div>
+
     </div>
-    <div class="tag-list" id="treat-tags"></div>
   </div>
+
   <div class="card">
-    <h3>Ölçümler</h3>
-    <div class="inline-row">
-      <input type="text" id="inp-meas" placeholder="ör. Bitki boyu (cm)">
-      <button class="btn btn-muted" id="btn-add-meas">Ekle</button>
-    </div>
-    <div class="tag-list" id="meas-tags"></div>
+    <div class="card-title">Önizleme — Oluşacak Karakterler</div>
+    <div class="preview-grid" id="preview-grid"></div>
   </div>
-  <button class="btn btn-success" id="btn-start-entry">▶ Veri Girişine Başla</button>
+
+  <button class="btn btn-success" id="btn-create">▶ Denemeyi Oluştur & Veri Girişine Başla</button>
 </div>
 
 <!-- ENTRY -->
 <div class="screen" id="screen-entry">
   <div>
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-    <div class="progress-text" id="progress-text">0 / 0</div>
+    <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    <div class="prog-text" id="prog-text">0 / 0</div>
   </div>
 
-  <div class="card cell-info-card" id="cell-card">
-    <div class="rep-label"   id="rep-label"></div>
-    <div class="treat-label" id="treat-label"></div>
-    <div class="meas-label"  id="meas-label"></div>
+  <div class="card cell-card" id="cell-card">
+    <div class="cell-rep"   id="cell-rep"></div>
+    <div class="cell-plant" id="cell-plant"></div>
+    <div class="cell-char"  id="cell-char"></div>
+    <div class="cell-sub"   id="cell-sub"></div>
   </div>
 
   <!-- iOS: klavye diktesi -->
   <div class="dikte-wrap" id="dikte-wrap">
-    <input class="dikte-input" id="dikte-input" type="text" inputmode="decimal"
-           placeholder="değer girin" autocomplete="off" autocorrect="off" spellcheck="false">
-    <div class="dikte-hint">Klavyedeki 🎤 ile sesli girin veya yazın</div>
+    <input class="dikte-input" id="dikte-inp" type="text" inputmode="decimal"
+           placeholder="—" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="dikte-hint">Klavyedeki 🎤 ile sesli girin veya yazın, sonra ✓ Kaydet'e basın</div>
   </div>
 
-  <!-- Android: Web Speech API -->
-  <div class="value-display" id="val-display" style="display:none">
-    <div class="val" id="val-text">—</div>
+  <!-- Android: Web Speech -->
+  <div class="val-display" id="val-display" style="display:none">
+    <div class="val-big" id="val-big">—</div>
     <div class="val-hint" id="val-hint">Mikrofona basın ve değeri söyleyin</div>
   </div>
-
   <div class="countdown" id="countdown"></div>
-
   <div class="mic-wrap" id="mic-wrap" style="display:none">
-    <button class="mic-btn" id="entry-mic">🎙️</button>
+    <button class="mic-btn" id="mic-btn">🎙️</button>
   </div>
 
   <div class="nav-row">
@@ -244,386 +219,332 @@
   </div>
 
   <hr class="divider">
-  <button class="btn btn-primary" id="btn-go-export">📊 Özet & CSV İndir</button>
+  <button class="btn btn-primary" id="btn-to-export">📊 Özet & Excel İndir</button>
 </div>
 
 <!-- EXPORT -->
 <div class="screen" id="screen-export">
-  <button class="btn btn-success" id="btn-dl-csv">⬇ Excel İndir (.xlsx)</button>
+  <button class="btn btn-success" id="btn-dl">⬇ Excel İndir (.xlsx)</button>
   <div class="card">
-    <h3>Veri Önizleme</h3>
-    <div class="table-wrap"><table id="data-table"></table></div>
+    <div class="card-title">Önizleme</div>
+    <div class="table-wrap"><table id="exp-table"></table></div>
   </div>
   <hr class="divider">
-  <button class="btn btn-danger" id="btn-delete">🗑 Bu Denemeyi Sil</button>
+  <button class="btn btn-danger" id="btn-del">🗑 Denemeyi Sil</button>
 </div>
 
 <script>
-// ─── STORAGE ────────────────────────────────────────────────
-let trials = JSON.parse(localStorage.getItem('tarla_v1') || '[]');
-let active = null;
-let curIdx  = 0;
-let tempVal = '';
-let cdTimer = null;
-let recog   = null;
-
+// ── STORAGE ─────────────────────────────────────────────────
+let trials = JSON.parse(localStorage.getItem('tarla_v2') || '[]');
+let active = null, curIdx = 0, tempVal = '', cdTimer = null, recog = null;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+function persist() { localStorage.setItem('tarla_v2', JSON.stringify(trials)); }
 
-function persist() { localStorage.setItem('tarla_v1', JSON.stringify(trials)); }
-
-// ─── CELL MATH ───────────────────────────────────────────────
-function total(t) { return t.replications * t.treatments.length * t.measurements.length; }
+// ── CELL MATH ────────────────────────────────────────────────
+// Order: rep → plant → char
+function totalCells(t) { return t.reps * t.plants * t.chars; }
 
 function cellAt(t, idx) {
-  const nm = t.measurements.length, nt = t.treatments.length;
-  const rep   = Math.floor(idx / (nt * nm));
-  const rem   = idx % (nt * nm);
-  const treat = Math.floor(rem / nm);
-  const meas  = rem % nm;
-  return { rep, treat, meas };
+  const rep   = Math.floor(idx / (t.plants * t.chars));
+  const rem   = idx % (t.plants * t.chars);
+  const plant = Math.floor(rem / t.chars);
+  const char  = rem % t.chars;
+  return { rep, plant, char };
 }
 
-function ck(rep, treat) { return rep + '_' + treat; }
+function charCode(rep, charIdx) { return (rep + 1) * 100 + charIdx + 1; }  // 101,102... / 201,202...
 
-function getv(t, rep, treat, meas) {
-  return ((t.data[ck(rep,treat)] || {})[meas]) ?? '';
+function cellKey(rep, plant, char) { return `${rep}_${plant}_${char}`; }
+
+function getv(t, rep, plant, char) { return t.data[cellKey(rep, plant, char)] ?? ''; }
+function setv(t, rep, plant, char, v) { t.data[cellKey(rep, plant, char)] = v; }
+
+function filledCount(t) {
+  return Object.values(t.data).filter(v => v !== '').length;
 }
 
-function setv(t, rep, treat, meas, val) {
-  if (!t.data[ck(rep,treat)]) t.data[ck(rep,treat)] = {};
-  t.data[ck(rep,treat)][meas] = val;
-}
+// ── SETUP STEPPERS ───────────────────────────────────────────
+const cfg = { reps: 3, plants: 10, chars: 10 };
+const limits = { reps:[1,20], plants:[1,50], chars:[1,30] };
 
-function filled(t) {
-  let n = 0;
-  for (let i = 0; i < total(t); i++) {
-    const {rep,treat,meas} = cellAt(t, i);
-    if (getv(t,rep,treat,meas) !== '') n++;
+window.step = function(key, delta) {
+  cfg[key] = Math.min(limits[key][1], Math.max(limits[key][0], cfg[key] + delta));
+  document.getElementById('val-'+key).textContent = cfg[key];
+  renderPreview();
+};
+
+function renderPreview() {
+  const el = document.getElementById('preview-grid');
+  const repClasses = ['rep1','rep2','rep3','repN'];
+  let html = '';
+  for (let r = 0; r < Math.min(cfg.reps, 3); r++) {
+    for (let c = 0; c < cfg.chars; c++) {
+      html += `<span class="char-chip ${repClasses[r]}">${charCode(r,c)}</span>`;
+    }
   }
-  return n;
+  if (cfg.reps > 3) {
+    html += `<span class="char-chip repN">…+${cfg.reps - 3} tekerrür daha</span>`;
+  }
+  el.innerHTML = html;
 }
 
-// ─── SCREEN ROUTER ───────────────────────────────────────────
-const TITLES = { home:'Tarla Kaydı', setup:'Yeni Deneme', entry:'Veri Girişi', export:'Özet & Dışa Aktar' };
-
+// ── SCREEN ROUTER ────────────────────────────────────────────
 function show(name) {
-  ['home','setup','entry','export'].forEach(s => {
-    document.getElementById('screen-'+s).classList.toggle('active', s===name);
-  });
-  document.getElementById('header-title').textContent = TITLES[name];
-  document.getElementById('back-btn').hidden = (name==='home');
+  ['home','setup','entry','export'].forEach(s =>
+    document.getElementById('screen-'+s).classList.toggle('active', s===name)
+  );
+  const titles = { home:'Tarla Kaydı', setup:'Deneme Tasarımı', entry:'Veri Girişi', export:'Özet & Dışa Aktar' };
+  document.getElementById('header-title').textContent = titles[name];
+  document.getElementById('back-btn').hidden = name === 'home';
 }
 
 document.getElementById('back-btn').addEventListener('click', () => {
   stopRec();
-  if (active && document.getElementById('screen-entry').classList.contains('active')) {
-    show('home'); renderHome();
-  } else if (document.getElementById('screen-export').classList.contains('active')) {
-    show('entry'); renderEntry();
-  } else {
-    show('home'); renderHome();
-  }
+  if (document.getElementById('screen-entry').classList.contains('active'))       { show('home'); renderHome(); }
+  else if (document.getElementById('screen-export').classList.contains('active')) { show('entry'); renderEntry(); }
+  else { show('home'); renderHome(); }
 });
 
-// ─── HOME ────────────────────────────────────────────────────
+// ── HOME ─────────────────────────────────────────────────────
 function renderHome() {
   const el = document.getElementById('trials-list');
   if (!trials.length) {
-    el.innerHTML = '<div class="empty-state">Henüz deneme yok.<br>Yeni bir deneme oluşturun.</div>';
+    el.innerHTML = '<div class="empty-state">Henüz deneme yok.<br>Yeni bir deneme tasarlayın.</div>';
     return;
   }
   el.innerHTML = trials.map(t => {
-    const d = filled(t), tot = total(t);
-    const pct = tot ? Math.round(d/tot*100) : 0;
+    const done = filledCount(t), tot = totalCells(t);
+    const pct  = tot ? Math.round(done/tot*100) : 0;
     const badge = pct===100
       ? '<span class="badge badge-done">Tamamlandı</span>'
       : `<span class="badge badge-wip">%${pct}</span>`;
     return `<div class="trial-item" onclick="openTrial('${t.id}')">
       <div class="info">
         <div class="t-name">${t.name}</div>
-        <div class="t-meta">${t.replications} tekerrür · ${t.treatments.length} uygulama · ${t.measurements.length} ölçüm</div>
+        <div class="t-meta">${t.reps} tekerrür · ${t.plants} bitki · ${t.chars} karakter</div>
         <div class="t-meta">${t.date}</div>
       </div>${badge}</div>`;
   }).join('');
 }
 
 window.openTrial = function(id) {
-  active = trials.find(t => t.id===id);
-  curIdx = active.lastIndex || 0;
+  active = trials.find(t => t.id === id);
+  curIdx = active.lastIdx || 0;
   show('entry'); renderEntry();
 };
 
-document.getElementById('btn-new-trial').addEventListener('click', () => {
-  document.getElementById('inp-trial-name').value = '';
-  document.getElementById('inp-reps').value = '3';
-  document.getElementById('treat-tags').innerHTML = '';
-  document.getElementById('meas-tags').innerHTML = '';
-  _treats = []; _meass = [];
+document.getElementById('btn-new').addEventListener('click', () => {
+  cfg.reps = 3; cfg.plants = 10; cfg.chars = 10;
+  ['reps','plants','chars'].forEach(k => document.getElementById('val-'+k).textContent = cfg[k]);
+  document.getElementById('inp-name').value = '';
+  renderPreview();
   show('setup');
 });
 
-// ─── SETUP ───────────────────────────────────────────────────
-let _treats = [], _meass = [];
-
-function renderTagList(arr, id, type) {
-  document.getElementById(id).innerHTML = arr.map((v,i) =>
-    `<div class="tag">${v}<button onclick="rmTag('${type}',${i})">×</button></div>`
-  ).join('');
-}
-
-window.rmTag = function(type, i) {
-  if (type==='t') { _treats.splice(i,1); renderTagList(_treats,'treat-tags','t'); }
-  else            { _meass.splice(i,1);  renderTagList(_meass,'meas-tags','m'); }
-};
-
-function addTag(inpId, arr, tagsId, type) {
-  const inp = document.getElementById(inpId);
-  const v = inp.value.trim();
-  if (v) { arr.push(v); inp.value = ''; renderTagList(arr, tagsId, type); }
-  inp.focus();
-}
-
-document.getElementById('btn-add-treat').addEventListener('click', () => addTag('inp-treat',_treats,'treat-tags','t'));
-document.getElementById('btn-add-meas').addEventListener('click',  () => addTag('inp-meas',_meass,'meas-tags','m'));
-document.getElementById('inp-treat').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btn-add-treat').click(); });
-document.getElementById('inp-meas').addEventListener('keydown',  e => { if(e.key==='Enter') document.getElementById('btn-add-meas').click(); });
-
-document.getElementById('btn-start-entry').addEventListener('click', () => {
-  const name = document.getElementById('inp-trial-name').value.trim();
-  const reps = parseInt(document.getElementById('inp-reps').value)||3;
-  if (!name)          { alert('Deneme adı girin.'); return; }
-  if (!_treats.length){ alert('En az bir uygulama ekleyin.'); return; }
-  if (!_meass.length) { alert('En az bir ölçüm ekleyin.'); return; }
-
+// ── SETUP ────────────────────────────────────────────────────
+document.getElementById('btn-create').addEventListener('click', () => {
+  const name = document.getElementById('inp-name').value.trim();
+  if (!name) { alert('Deneme adı girin.'); return; }
   const t = {
     id: Date.now().toString(),
     name, date: new Date().toLocaleDateString('tr-TR'),
-    replications: reps,
-    treatments: [..._treats],
-    measurements: [..._meass],
-    data: {}, lastIndex: 0,
+    reps: cfg.reps, plants: cfg.plants, chars: cfg.chars,
+    data: {}, lastIdx: 0,
   };
   trials.push(t); persist();
   active = t; curIdx = 0;
   show('entry'); renderEntry();
 });
 
-// iOS tespiti
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-// Giriş modunu ayarla
-function setupInputMode() {
+// ── ENTRY ────────────────────────────────────────────────────
+function setupMode() {
   document.getElementById('dikte-wrap').style.display  = isIOS ? 'flex'  : 'none';
   document.getElementById('val-display').style.display = isIOS ? 'none'  : 'block';
   document.getElementById('mic-wrap').style.display    = isIOS ? 'none'  : 'flex';
 }
 
-// ─── ENTRY ───────────────────────────────────────────────────
 function renderEntry() {
   if (!active) return;
-  setupInputMode();
-  const t = active;
-  const tot = total(t);
-  const {rep, treat, meas} = cellAt(t, curIdx);
+  setupMode();
+  const t = active, tot = totalCells(t);
+  const { rep, plant, char } = cellAt(t, curIdx);
+  const code = charCode(rep, char);
 
   // progress
-  const done = filled(t);
-  document.getElementById('progress-fill').style.width = (tot ? done/tot*100 : 0) + '%';
-  document.getElementById('progress-text').textContent = `${done} / ${tot} hücre`;
+  const done = filledCount(t);
+  document.getElementById('prog-fill').style.width = (tot ? done/tot*100 : 0) + '%';
+  document.getElementById('prog-text').textContent = `${done} / ${tot} hücre`;
 
   // cell info
-  document.getElementById('rep-label').textContent   = `Tekerrür ${rep+1} / ${t.replications}`;
-  document.getElementById('treat-label').textContent = t.treatments[treat];
-  document.getElementById('meas-label').textContent  = t.measurements[meas];
+  document.getElementById('cell-rep').textContent   = `Tekerrür ${rep+1} / ${t.reps}`;
+  document.getElementById('cell-plant').textContent = `Bitki ${plant+1}`;
+  document.getElementById('cell-char').textContent  = `Karakter ${code}`;
+  document.getElementById('cell-sub').textContent   = `${char+1}. karakter · ${plant+1}/${t.plants} bitki`;
 
   // value
-  const existing = getv(t, rep, treat, meas);
-  if (isIOS) {
-    const inp = document.getElementById('dikte-input');
-    inp.value = existing;
-    inp.placeholder = t.measurements[meas];
-    setTimeout(() => inp.focus(), 100);
-  } else {
-    updateDisplay(existing, existing !== '');
-  }
+  const existing = getv(t, rep, plant, char);
   tempVal = existing;
-  document.getElementById('btn-prev').disabled = curIdx===0;
+
+  if (isIOS) {
+    const inp = document.getElementById('dikte-inp');
+    inp.value = existing;
+    setTimeout(() => inp.focus(), 80);
+  } else {
+    updateValDisplay(existing, existing !== '');
+  }
+
+  document.getElementById('btn-prev').disabled = curIdx === 0;
   clearCd();
 }
 
-function updateDisplay(v, confirmed) {
-  const disp = document.getElementById('val-display');
-  const el   = document.getElementById('val-text');
+function updateValDisplay(v, confirmed) {
+  const el = document.getElementById('val-big');
   el.textContent = v || '—';
-  el.className   = 'val' + (!confirmed && v ? ' interim' : '');
-  disp.className = 'value-display' + (confirmed ? ' confirmed' : v ? ' listening' : '');
+  el.className = 'val-big' + (!confirmed && v ? ' interim' : '');
+  document.getElementById('val-display').className = 'val-display' + (confirmed ? ' confirmed' : v ? ' listening' : '');
   document.getElementById('val-hint').textContent = confirmed
-    ? '✓ Kaydedildi — bir sonrakine geçiliyor'
-    : (v ? 'Onaylamak için ✓ Kaydet\'e basın' : 'Mikrofona basın ve değeri söyleyin');
+    ? '✓ Kaydedildi'
+    : (v ? '✓ Kaydet\'e basın' : 'Mikrofona basın ve değeri söyleyin');
 }
 
 function doConfirm(val) {
-  if (val === '' || val === null || val === undefined || !active) return;
-  const {rep,treat,meas} = cellAt(active, curIdx);
-  setv(active, rep, treat, meas, String(val).trim());
-  active.lastIndex = curIdx;
+  if (val === '' || val === null || !active) return;
+  const { rep, plant, char } = cellAt(active, curIdx);
+  setv(active, rep, plant, char, String(val).trim());
+  active.lastIdx = curIdx;
   persist();
-  if (!isIOS) {
-    updateDisplay(val, true);
-    document.getElementById('entry-mic').className = 'mic-btn confirming';
-  }
+  if (!isIOS) { updateValDisplay(val, true); document.getElementById('mic-btn').className = 'mic-btn confirming'; }
   clearCd();
   setTimeout(() => {
-    if (!isIOS) document.getElementById('entry-mic').className = 'mic-btn';
-    if (curIdx < total(active)-1) { curIdx++; renderEntry(); }
-    else { document.getElementById('progress-text').textContent = '🎉 Tüm değerler girildi!'; }
+    if (!isIOS) document.getElementById('mic-btn').className = 'mic-btn';
+    if (curIdx < totalCells(active)-1) { curIdx++; renderEntry(); }
+    else { document.getElementById('prog-text').textContent = '🎉 Tüm değerler girildi!'; }
   }, 400);
 }
 
-// iOS: input değişince tempVal güncelle
-document.getElementById('dikte-input').addEventListener('input', e => {
-  tempVal = e.target.value;
-});
-
-// iOS: Return/Done tuşu → otomatik kaydet
-document.getElementById('dikte-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); doConfirm(tempVal); }
-});
-
-// countdown (Android için)
-function startCd(val) {
-  clearCd();
-  let s = 2;
-  const el = document.getElementById('countdown');
-  el.textContent = `${s} sn içinde kaydedilecek…`;
-  cdTimer = setInterval(() => {
-    s--;
-    if (s <= 0) { clearCd(); doConfirm(val); }
-    else el.textContent = `${s} sn içinde kaydedilecek…`;
-  }, 1000);
-}
-
-function clearCd() {
-  if (cdTimer) { clearInterval(cdTimer); cdTimer = null; }
-  document.getElementById('countdown').textContent = '';
-}
+document.getElementById('dikte-inp').addEventListener('input', e => { tempVal = e.target.value; });
+document.getElementById('dikte-inp').addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doConfirm(tempVal); } });
 
 document.getElementById('btn-confirm').addEventListener('click', () => {
-  const val = isIOS ? document.getElementById('dikte-input').value : tempVal;
+  const val = isIOS ? document.getElementById('dikte-inp').value : tempVal;
   clearCd(); doConfirm(val);
 });
+document.getElementById('btn-prev').addEventListener('click', () => { clearCd(); stopRec(); if(curIdx>0){curIdx--;renderEntry();} });
+document.getElementById('btn-skip').addEventListener('click', () => { clearCd(); stopRec(); if(curIdx<totalCells(active)-1){curIdx++;renderEntry();} });
+document.getElementById('btn-to-export').addEventListener('click', () => { stopRec(); renderExport(); show('export'); });
 
-document.getElementById('btn-prev').addEventListener('click', () => {
-  clearCd(); stopRec();
-  if (curIdx > 0) { curIdx--; renderEntry(); }
-});
+// countdown
+function startCd(val) {
+  clearCd(); let s=2;
+  const el = document.getElementById('countdown');
+  el.textContent = `${s} sn içinde kaydedilecek…`;
+  cdTimer = setInterval(() => { s--; if(s<=0){clearCd();doConfirm(val);}else el.textContent=`${s} sn içinde kaydedilecek…`; }, 1000);
+}
+function clearCd() {
+  if(cdTimer){clearInterval(cdTimer);cdTimer=null;}
+  document.getElementById('countdown').textContent='';
+}
 
-document.getElementById('btn-skip').addEventListener('click', () => {
-  clearCd(); stopRec();
-  if (curIdx < total(active)-1) { curIdx++; renderEntry(); }
-});
-
-document.getElementById('btn-go-export').addEventListener('click', () => {
-  stopRec(); renderExport(); show('export');
-});
-
-// ─── SPEECH (Android) ────────────────────────────────────────
-document.getElementById('entry-mic').addEventListener('click', () => {
-  const btn = document.getElementById('entry-mic');
-  if (!SR) { alert('Tarayıcınız ses tanımayı desteklemiyor. Chrome kullanın.'); return; }
+// ── SPEECH (Android) ─────────────────────────────────────────
+document.getElementById('mic-btn').addEventListener('click', () => {
+  const btn = document.getElementById('mic-btn');
+  if (!SR) { alert('Chrome kullanın.'); return; }
   if (btn.classList.contains('listening')) { stopRec(); return; }
-
-  clearCd();
-  tempVal = '';
-  updateDisplay('', false);
-
-  recog = new SR();
-  recog.lang = 'tr-TR';
-  recog.continuous = false;
-  recog.interimResults = true;
-
+  clearCd(); tempVal=''; updateValDisplay('',false);
+  recog = new SR(); recog.lang='tr-TR'; recog.continuous=false; recog.interimResults=true;
   recog.onresult = e => {
-    let interim='', final='';
-    for (let i=e.resultIndex; i<e.results.length; i++) {
-      const tx = e.results[i][0].transcript.trim();
-      if (e.results[i].isFinal) final=tx; else interim=tx;
+    let interim='',final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const tx=e.results[i][0].transcript.trim();
+      if(e.results[i].isFinal)final=tx;else interim=tx;
     }
-    const v = final || interim;
-    tempVal = v;
-    updateDisplay(v, false);
-    if (final) { btn.className = 'mic-btn'; startCd(final); }
+    const v=final||interim; tempVal=v; updateValDisplay(v,false);
+    if(final){btn.className='mic-btn';startCd(final);}
   };
-
-  recog.onend = () => { btn.className = 'mic-btn'; };
-  recog.onerror = e => {
-    btn.className = 'mic-btn';
-    if (e.error !== 'no-speech') document.getElementById('val-hint').textContent = 'Hata: ' + e.error;
-  };
-
-  recog.start();
-  btn.className = 'mic-btn listening';
+  recog.onend=()=>{btn.className='mic-btn';};
+  recog.onerror=e=>{btn.className='mic-btn';if(e.error!=='no-speech')document.getElementById('val-hint').textContent='Hata: '+e.error;};
+  recog.start(); btn.className='mic-btn listening';
 });
 
 function stopRec() {
-  if (recog) { try { recog.stop(); } catch(e){} recog = null; }
-  document.getElementById('entry-mic').className = 'mic-btn';
+  if(recog){try{recog.stop();}catch(e){}recog=null;}
+  document.getElementById('mic-btn').className='mic-btn';
   clearCd();
 }
 
-// ─── EXPORT ──────────────────────────────────────────────────
-function renderExport() {
-  const t = active;
-  const headers = ['Tekerrür', 'Uygulama', ...t.measurements];
-  let html = '<thead><tr>' + headers.map(h=>`<th>${h}</th>`).join('') + '</tr></thead><tbody>';
-  for (let r=0; r<t.replications; r++) {
-    for (let tr=0; tr<t.treatments.length; tr++) {
-      html += '<tr><td>'+(r+1)+'</td><td>'+t.treatments[tr]+'</td>';
-      t.measurements.forEach((_,mi) => {
-        const v = getv(t, r, tr, mi);
-        html += v !== '' ? `<td>${v}</td>` : `<td class="missing">—</td>`;
-      });
-      html += '</tr>';
+// ── EXPORT ───────────────────────────────────────────────────
+function buildRows(t) {
+  const allRows = [];
+  for (let r = 0; r < t.reps; r++) {
+    // Section header (like Excel: "Karakterler/Bitki Sayısı | 101 | 102...")
+    const header = r === 0
+      ? 'Karakterler/Bitki Sayısı'
+      : `${r+1}. tekerrür Karakterler/Bitki Sayısı`;
+    const charCodes = Array.from({length:t.chars}, (_,ci) => charCode(r,ci));
+    allRows.push({ type:'header', label: header, codes: charCodes, rep: r });
+    // Plant rows
+    for (let p = 0; p < t.plants; p++) {
+      const vals = Array.from({length:t.chars}, (_,ci) => getv(t,r,p,ci));
+      allRows.push({ type:'data', plant: p+1, vals });
     }
   }
-  html += '</tbody>';
-  document.getElementById('data-table').innerHTML = html;
+  return allRows;
 }
 
-document.getElementById('btn-dl-csv').addEventListener('click', () => {
+function renderExport() {
   const t = active;
-  const rows = [['Tekerrür','Uygulama',...t.measurements]];
-  for (let r=0; r<t.replications; r++) {
-    for (let tr=0; tr<t.treatments.length; tr++) {
-      const row = [r+1, t.treatments[tr]];
-      t.measurements.forEach((_,mi) => {
-        const v = getv(t,r,tr,mi);
-        const num = parseFloat(v);
-        row.push(v !== '' && !isNaN(num) ? num : v);
-      });
-      rows.push(row);
+  const rows = buildRows(t);
+  let html = '<tbody>';
+  rows.forEach(row => {
+    if (row.type === 'header') {
+      html += `<tr><td class="section-header" colspan="${t.chars+1}">${row.label}</td></tr>`;
+      html += '<tr><td class="row-label">Bitki</td>' + row.codes.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+    } else {
+      html += `<tr><td class="row-label">${row.plant}</td>` +
+        row.vals.map(v => v !== '' ? `<td>${v}</td>` : `<td class="empty">—</td>`).join('') + '</tr>';
     }
-  }
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  // Sütun genişlikleri
-  ws['!cols'] = rows[0].map((_, i) => ({ wch: i < 2 ? 14 : 18 }));
-  // Başlık satırı kalın
-  rows[0].forEach((_, i) => {
-    const cell = ws[XLSX.utils.encode_cell({r:0, c:i})];
-    if (cell) cell.s = { font: { bold: true } };
   });
+  html += '</tbody>';
+  document.getElementById('exp-table').innerHTML = html;
+}
+
+document.getElementById('btn-dl').addEventListener('click', () => {
+  const t = active;
   const wb = XLSX.utils.book_new();
+  const wsData = [];
+
+  for (let r = 0; r < t.reps; r++) {
+    const label = r === 0 ? 'Karakterler/Bitki Sayısı' : `${r+1}. tekerrür Karakterler/Bitki Sayısı`;
+    const codes = Array.from({length:t.chars}, (_,ci) => charCode(r,ci));
+    wsData.push([label, ...codes]);
+    for (let p = 0; p < t.plants; p++) {
+      const row = [p+1];
+      for (let ci = 0; ci < t.chars; ci++) {
+        const v = getv(t,r,p,ci);
+        const n = parseFloat(v);
+        row.push(v !== '' && !isNaN(n) ? n : v);
+      }
+      wsData.push(row);
+    }
+    wsData.push([]); // boş satır tekerrürler arasında
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:30}, ...Array(t.chars).fill({wch:8})];
   XLSX.utils.book_append_sheet(wb, ws, t.name.slice(0,31));
   XLSX.writeFile(wb, (t.name+'_'+t.date).replace(/[\s/\\:*?"<>|]/g,'_')+'.xlsx');
 });
 
-document.getElementById('btn-delete').addEventListener('click', () => {
-  if (!confirm(`"${active.name}" silinsin mi? Bu işlem geri alınamaz.`)) return;
-  trials = trials.filter(t=>t.id!==active.id);
-  persist(); active=null;
+document.getElementById('btn-del').addEventListener('click', () => {
+  if (!confirm(`"${active.name}" silinsin mi?`)) return;
+  trials = trials.filter(t => t.id !== active.id);
+  persist(); active = null;
   show('home'); renderHome();
 });
 
-// ─── INIT ────────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────────
+renderPreview();
 renderHome();
 </script>
 </body>
