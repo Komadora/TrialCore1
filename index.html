@@ -283,9 +283,10 @@
   <div id="panel-analysis" style="display:none">
     <!-- Alt sekmeler -->
     <div class="chart-tabs">
-      <button class="chart-tab active" id="ctab-avg">Ortalamalar</button>
+      <button class="chart-tab active" id="ctab-sum">Toplam</button>
+      <button class="chart-tab" id="ctab-avg">Ortalama</button>
       <button class="chart-tab" id="ctab-cv">CV%</button>
-      <button class="chart-tab" id="ctab-rep">Tekerrur Karsilastirma</button>
+      <button class="chart-tab" id="ctab-rep">Tekerrur</button>
     </div>
     <div class="chart-wrap"><canvas id="chart-canvas"></canvas></div>
 
@@ -298,7 +299,7 @@
   <!-- ZAMAN SERiSi paneli (gizli baslar) -->
   <div id="panel-timeline" style="display:none">
     <div class="card">
-      <div class="card-title">Zaman Karsilastirma — Karakter Ortalamalari</div>
+      <div class="card-title">Zaman Karsilastirma — Toplam Sayilar</div>
       <div class="table-wrap"><table id="timeline-table"></table></div>
     </div>
     <div class="chart-wrap" style="margin-top:12px">
@@ -771,12 +772,13 @@ function clearCd() {
 // ── iSTATiSTiK HESAPLAMA ─────────────────────────────────────
 function calcStats(values) {
   const nums = values.map(Number).filter(n => !isNaN(n));
-  if (!nums.length) return { n:0, avg:0, std:0, cv:0, min:0, max:0 };
+  if (!nums.length) return { n:0, sum:0, avg:0, std:0, cv:0, min:0, max:0 };
   const n = nums.length;
-  const avg = nums.reduce((a,b) => a+b, 0) / n;
+  const sum = nums.reduce((a,b) => a+b, 0);
+  const avg = sum / n;
   const std = Math.sqrt(nums.reduce((a,b) => a + (b-avg)**2, 0) / (n > 1 ? n-1 : 1));
   const cv = avg !== 0 ? (std / Math.abs(avg)) * 100 : 0;
-  return { n, avg, std, cv, min: Math.min(...nums), max: Math.max(...nums) };
+  return { n, sum, avg, std, cv, min: Math.min(...nums), max: Math.max(...nums) };
 }
 
 function getCharStats(t) {
@@ -784,6 +786,7 @@ function getCharStats(t) {
   for (let ci = 0; ci < t.chars; ci++) {
     const allVals = [];
     const repAvgs = [];
+    const repSums = [];
     for (let r = 0; r < t.reps; r++) {
       const repVals = [];
       for (let p = 0; p < t.plants; p++) {
@@ -792,9 +795,10 @@ function getCharStats(t) {
       }
       const rs = calcStats(repVals);
       repAvgs.push(rs.avg);
+      repSums.push(rs.sum);
     }
     const overall = calcStats(allVals);
-    stats.push({ charIdx: ci, code: charCode(0, ci), overall, repAvgs });
+    stats.push({ charIdx: ci, code: charCode(0, ci), overall, repAvgs, repSums });
   }
   return stats;
 }
@@ -868,18 +872,19 @@ function renderExport() {
   document.getElementById('exp-table').innerHTML = html;
 
   const stats = getCharStats(t);
-  let shtml = '<thead><tr><th>Karakter</th><th>N</th><th>Ort.</th><th>Std Sapma</th><th>CV%</th><th>Min</th><th>Max</th>';
-  for (let r = 0; r < t.reps; r++) shtml += `<th>Tek${r+1} Ort</th>`;
+  let shtml = '<thead><tr><th>Karakter</th><th>Toplam</th><th>N</th><th>Ort.</th><th>Std Sapma</th><th>CV%</th><th>Min</th><th>Max</th>';
+  for (let r = 0; r < t.reps; r++) shtml += `<th>Tek${r+1} Top</th>`;
   shtml += '</tr></thead><tbody>';
   stats.forEach(s => {
     const cvClass = s.overall.cv < 10 ? 'color:#4ade80' : s.overall.cv < 20 ? 'color:#fbbf24' : 'color:#f87171';
     shtml += `<tr><td class="row-label">${s.code}</td>`;
+    shtml += `<td style="font-weight:700;color:#388bfd">${s.overall.sum}</td>`;
     shtml += `<td>${s.overall.n}</td>`;
     shtml += `<td>${s.overall.avg.toFixed(2)}</td>`;
     shtml += `<td>${s.overall.std.toFixed(2)}</td>`;
     shtml += `<td style="${cvClass};font-weight:700">${s.overall.cv.toFixed(1)}%</td>`;
     shtml += `<td>${s.overall.min}</td><td>${s.overall.max}</td>`;
-    s.repAvgs.forEach(ra => shtml += `<td>${ra.toFixed(2)}</td>`);
+    s.repSums.forEach(rs => shtml += `<td>${rs}</td>`);
     shtml += '</tr>';
   });
   shtml += '</tbody>';
@@ -905,7 +910,24 @@ function renderChart(type, stats, t) {
   const ctx = document.getElementById('chart-canvas').getContext('2d');
   const labels = stats.map(s => String(s.code));
 
-  if (type === 'avg') {
+  if (type === 'sum') {
+    currentChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Toplam Sayı',
+          data: stats.map(s => s.overall.sum),
+          backgroundColor: '#388bfd',
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, plugins: { legend: { labels: { color:'#7d8590' } } },
+        scales: { x: { ticks:{color:'#7d8590'} }, y: { ticks:{color:'#7d8590'}, grid:{color:'#21262d'} } }
+      }
+    });
+  } else if (type === 'avg') {
     currentChart = new Chart(ctx, {
       type: 'bar',
       data: {
@@ -913,7 +935,7 @@ function renderChart(type, stats, t) {
         datasets: [{
           label: 'Genel Ortalama',
           data: stats.map(s => +s.overall.avg.toFixed(2)),
-          backgroundColor: '#388bfd',
+          backgroundColor: '#3fb950',
           borderRadius: 4,
         }]
       },
@@ -945,7 +967,7 @@ function renderChart(type, stats, t) {
     for (let r = 0; r < t.reps; r++) {
       datasets.push({
         label: `Tekerrür ${r+1}`,
-        data: stats.map(s => +s.repAvgs[r].toFixed(2)),
+        data: stats.map(s => s.repSums[r]),
         backgroundColor: repColors[r % repColors.length],
         borderRadius: 4,
       });
@@ -973,7 +995,7 @@ document.getElementById('etab-raw').addEventListener('click', () => setExportTab
 
 document.getElementById('etab-analysis').addEventListener('click', () => {
   setExportTab('analysis');
-  if (active) renderChart('avg', getCharStats(active), active);
+  if (active) renderChart('sum', getCharStats(active), active);
 });
 
 document.getElementById('etab-timeline').addEventListener('click', () => {
@@ -982,7 +1004,7 @@ document.getElementById('etab-timeline').addEventListener('click', () => {
 });
 
 // Analiz alt sekmeleri
-['avg','cv','rep'].forEach(type => {
+['sum','avg','cv','rep'].forEach(type => {
   document.getElementById('ctab-'+type).addEventListener('click', () => {
     document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
     document.getElementById('ctab-'+type).classList.add('active');
@@ -1022,7 +1044,7 @@ function renderTimeline() {
     allObsStats.forEach(stats => {
       const s = stats[ci];
       html += s.overall.n > 0
-        ? `<td>${s.overall.avg.toFixed(2)}</td>`
+        ? `<td style="font-weight:700">${s.overall.sum}</td>`
         : '<td class="empty">—</td>';
     });
     html += '</tr>';
@@ -1039,7 +1061,7 @@ function renderTimeline() {
   for (let ci = 0; ci < active.chars; ci++) {
     const data = allObsStats.map(stats => {
       const s = stats[ci];
-      return s.overall.n > 0 ? +s.overall.avg.toFixed(2) : null;
+      return s.overall.n > 0 ? s.overall.sum : null;
     });
     datasets.push({
       label: String(charCode(0, ci)),
@@ -1134,8 +1156,8 @@ function buildXlsx(t) {
   const stats = getCharStats(t);
   const aData = [];
 
-  const aHeader = ['Karakter', 'N', 'Ortalama', 'Std Sapma', 'CV%', 'Min', 'Max'];
-  for (let r = 0; r < t.reps; r++) aHeader.push(`Tek${r+1} Ort`);
+  const aHeader = ['Karakter', 'Toplam', 'N', 'Ortalama', 'Std Sapma', 'CV%', 'Min', 'Max'];
+  for (let r = 0; r < t.reps; r++) aHeader.push(`Tek${r+1} Top`);
   aHeader.push('', '', 'REFERANS TABLOSU');
   aData.push(aHeader);
 
@@ -1149,6 +1171,7 @@ function buildXlsx(t) {
   stats.forEach((s, i) => {
     const row = [
       s.code,
+      s.overall.sum,
       s.overall.n,
       +s.overall.avg.toFixed(2),
       +s.overall.std.toFixed(2),
@@ -1156,7 +1179,7 @@ function buildXlsx(t) {
       s.overall.min,
       s.overall.max,
     ];
-    s.repAvgs.forEach(ra => row.push(+ra.toFixed(2)));
+    s.repSums.forEach(rs => row.push(rs));
     if (i < refRows.length) {
       row.push('', '', refRows[i][0], refRows[i][1]);
     }
@@ -1176,7 +1199,7 @@ function buildXlsx(t) {
 
   const ws2 = XLSX.utils.aoa_to_sheet(aData);
   ws2['!cols'] = [
-    {wch:12}, {wch:6}, {wch:10}, {wch:10}, {wch:8}, {wch:8}, {wch:8},
+    {wch:12}, {wch:10}, {wch:6}, {wch:10}, {wch:10}, {wch:8}, {wch:8}, {wch:8},
     ...Array(t.reps).fill({wch:10}),
     {wch:3}, {wch:3}, {wch:16}, {wch:28}
   ];
@@ -1198,7 +1221,7 @@ function buildXlsx(t) {
             const v = o.data[cellKey(r, p, ci)] ?? '';
             if (v !== '') vals.push(Number(v));
           }
-        row.push(vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2) : '');
+        row.push(vals.length ? vals.reduce((a,b)=>a+b,0) : '');
       });
       tData.push(row);
     }
